@@ -67,14 +67,14 @@ while(True):
     ax2=axes[0,1]
     ax2.set_title("savgol filter")
     ax3=axes[1,1]
-    ax3.set_title("first and second derivative of function")
+    ax3.set_title("first and second derivative of savgol filter")
     ax4=axes[1,0]
+    ax4.set_title("first and second derivative of butter filter")
 
     #perform some nosie filtering?
     #using a savitzky-golay filter?
 
-    window_length=len(restData["CPS"])
-    polyOrder=window_length-5
+    window_length=50
     if(window_length%2)==0:
         window_length=window_length-1
     else:
@@ -82,8 +82,8 @@ while(True):
 
 
     #recall: row, column
-    window_length=21
-    polyOrder=5
+    window_length=max(50,len(data)//10)
+    polyOrder=8
 
     def savgolFilter(data,diff):
         return signal.savgol_filter(data,window_length,polyOrder)
@@ -99,7 +99,7 @@ while(True):
         filteredSignal=signal.sosfilt(filter,data.iloc[:,1])
         return filteredSignal
 
-    a=butter_lowpass_filter(restData,8,5)
+    a=butter_lowpass_filter(restData,10,5)
     butterData=pd.DataFrame()
     butterData["B.E"]=restData["B.E"]
     butterData["CPS"]=a
@@ -110,26 +110,31 @@ while(True):
 
 
     ySavgol=signal.savgol_filter(restData["CPS"],window_length,polyOrder)
-    yDeriv=signal.savgol_filter(restData["CPS"],window_length,polyOrder,deriv=1)
-    yDoubleDeriv=signal.savgol_filter(restData["CPS"],window_length,polyOrder,deriv=2)
+    #yDeriv=signal.savgol_filter(ySavgol,window_length,polyOrder,deriv=1)
+    #yDeriv=np.gradient(ySavgol,restData["B.E"])
+    #yDoubleDeriv=np.gradient(yDeriv,restData["B.E"])
+    yDeriv=np.diff(ySavgol)/np.diff(restData["B.E"])
+    # IMPORTANT: append a repeated value at the end
+    yDeriv=np.append(yDeriv,yDeriv[-1])
+    yDoubleDeriv=np.diff(yDeriv)/np.diff(restData["B.E"])
+    yDoubleDeriv=np.append(yDoubleDeriv,yDoubleDeriv[-1])
+    #IMPORTANT: append a repeated value at the end
+    #yDoubleDeriv=signal.savgol_filter(restData["CPS"],window_length,polyOrder,deriv=2)
 
     savgolData=restData.copy(deep=True)
     savgolData["filtCPS"]=ySavgol
     savgolData["filtDerivCPS"]=yDeriv
     savgolData["filtDoublDerivCPS"]=yDoubleDeriv
 
-
     ax1.plot(restData["B.E"],restData["CPS"])
     ax1.plot(butterData["B.E"],butterData["CPS"])
 
-    ax2.plot(restData["B.E"],savgolData["filtCPS"])
     ax2.plot(savgolData["B.E"],savgolData["CPS"])
+    ax2.plot(savgolData["B.E"],savgolData["filtCPS"])
 
     ax3.plot(savgolData["B.E"],savgolData["filtDerivCPS"])
-    ax3.plot(savgolData["B.E"],savgolData["filtDoublDerivCPS"])
 
     ax4.plot(butterData["B.E"],butterData["butterDeriv"])
-    ax4.plot(butterData["B.E"],butterData["butterDoubleDeriv"])
 
     
 
@@ -140,7 +145,7 @@ while(True):
     #SHOULD BE MAX INDICIES
     localMaxIndicies=np.where(signChanges)[0]
     maxRow=savgolData[savgolData.filtDerivCPS==savgolData.filtDerivCPS[localMaxIndicies].max()]
-    ax3.scatter(savgolData["B.E"][localMaxIndicies],savgolData["filtDerivCPS"][localMaxIndicies])
+    ax3.scatter(savgolData["B.E"].iloc[localMaxIndicies],savgolData["filtDerivCPS"].iloc[localMaxIndicies])
     #ax3.scatter(maxRow["B.E"],maxRow["filtDerivCPS"],marker="X")
 
     # 2 points to form a line: one must pass through savgolData["B.E"],savgolData.filtCPS
