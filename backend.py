@@ -41,7 +41,6 @@ while (True):
 
     # read the excelFile
     data = pd.read_excel(excelFile)
-    print(data["B.E"].min())
 
     print("select lower bound for B.E")
     lowerBound = float(input())
@@ -66,13 +65,13 @@ while (True):
     ax2 = axes[0, 1]
     ax2.set_title("savgol filter")
     ax3 = axes[1, 1]
-    ax3.set_title("first and second derivative of savgol filter")
+    ax3.set_title("smoothed derivative of savgol filter with variance window")
     ax4 = axes[1, 0]
-    ax4.set_title("first and second derivative of butter filter")
+    ax4.set_title("extrapolated linear fit")
 
     # recall: row, column
-    window_length = max(50, len(restData)//10)
-    polyOrder = 8
+    window_length = len(restData)//5
+    polyOrder = 5
 
     def savgolFilter(data, diff):
         return signal.savgol_filter(data, window_length, polyOrder)
@@ -124,21 +123,19 @@ while (True):
         savgolData["smoothedDeriv"])/np.diff(restData["B.E"])
     yDoubleDeriv = np.append(yDoubleDeriv, yDoubleDeriv[-1])
     savgolData["filtDoublDerivCPS"] = yDoubleDeriv
-    savgolData["derivVariance"]=savgolData["smoothedDeriv"].rolling(window=window_length).var()
+    savgolData["derivVariance"] = savgolData["smoothedDeriv"].rolling(
+        window=len(data)//25).var()
 
-    minRow=savgolData[savgolData["derivVariance"]==savgolData["derivVariance"].min()]
-    #from the minrow, we can find the slope, and intercept(?)
-    a=minRow["smoothedDeriv"]
-    x=np.linspace(restData["B.E"].min(),restData["B.E"].max())
-    b=minRow.filtCPS-minRow.smoothedDeriv*minRow["B.E"]
-    y=[a*p+b for p in x]
-    xint=-b/a
+    minRow = savgolData[savgolData["derivVariance"]
+                        == savgolData["derivVariance"].min()]
+    # from the minrow, we can find the slope, and intercept(?)
+    a = minRow["smoothedDeriv"]
+    x = np.linspace(restData["B.E"].min(), restData["B.E"].max())
+    b = minRow.filtCPS-minRow.smoothedDeriv*minRow["B.E"]
+    y = [a*p+b for p in x]
+    xint = -b/a
 
-
-
-
-
-    #find the minimum of the derivVariance
+    # find the minimum of the derivVariance
 
     ax1.plot(restData["B.E"], restData["CPS"])
     ax1.plot(butterData["B.E"], butterData["CPS"])
@@ -149,11 +146,11 @@ while (True):
     ax3.plot(savgolData["B.E"], savgolData["filtDerivCPS"])
     ax3.plot(savgolData["B.E"], savgolData["smoothedDeriv"])
     ax3.plot(savgolData["B.E"], savgolData["derivVariance"])
-    ax3.scatter(minRow["B.E"],minRow["derivVariance"])
+    ax3.scatter(minRow["B.E"], minRow["derivVariance"])
 
     ax4.plot(savgolData["B.E"], savgolData["filtCPS"])
-    ax4.plot(x,y)
-    ax4.scatter(xint,0)
+    ax4.plot(x, y)
+    ax4.scatter(xint, 0)
     print(xint)
 
     signChanges = np.diff(np.sign(savgolData["filtDoublDerivCPS"])) < 0
