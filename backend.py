@@ -32,7 +32,6 @@ while (True):
     if (path == 'q'):
         print("program exited")
         break
-    path = "/home/vedaant/python-for-data-science/linear-regression/VBM2.xlsx"
     if not os.path.isfile(path):
         print("given file is not a path: try again")
         continue
